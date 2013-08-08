@@ -43,12 +43,6 @@
 		</transition> 
 	</saveAssetStep>
 	
-<!---	<setContextData name="AssociateOmfToTheProject"  targetDataDef="temp" valueExpression="${#setProjectAsset(subject, 'Audio', audioAsset.masterAsset)}" >
-		<transition condition="=true">
-            <targetStepName>SaveEdlFile</targetStepName>
-		</transition>
-	</setContextData> --->
-	
     <saveAssetStep name="SaveEdlFile" 
         executionLabelExpression="Saving EDL file."   
         assetExpression=""

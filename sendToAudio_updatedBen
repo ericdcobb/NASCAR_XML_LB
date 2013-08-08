@@ -1,0 +1,118 @@
+<workflow xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="http://levelsbeyond.com/schema/workflow"
+    xmlns:nimbus="http://levelsbeyond.com/schema/workflow/nimbus"    
+    xsi:schemaLocation="
+        http://levelsbeyond.com/schema/workflow http://www.levelsbeyond.com/schema/workflow-1.2.xsd
+        http://levelsbeyond.com/schema/workflow/nimbus file://C://workspaces//nascar//Nimbus-1.1.x//common//server//src//main//xsd//nimbus-common-workflow.xsd        
+        "
+        
+    id="_sendToAudio"
+    name="Send to Audio Edit"
+    executionLabelExpression="Send to Audio for editing"
+    description=""
+    subjectDOClassName="Project"
+    showInUserInterface="true"
+    deadlineExpression="">
+  
+	<initialStepName>Begin</initialStepName>
+	
+	<noopStep name="Begin" executionLabelExpression="Begin Send To Audio">
+        <transition condition="=true">
+            <targetStepName>ValidateSelectedFiles</targetStepName>
+        </transition>
+	</noopStep>
+	
+	<noopStep name="ValidateSelectedFiles" executionLabelExpression="Validating selected files" >
+		<transition condition='${omfFile.name.toLowerCase().endsWith(".omf") and edlFile.name.toLowerCase().endsWith(".edl") and referenceFile.name.toLowerCase().endsWith(".mov")}' >
+			<targetStepName>SaveOmfFile</targetStepName>
+		</transition>
+		<transition condition="=true" >
+			<targetStepName>Error</targetStepName>		
+		</transition>
+	</noopStep>
+	
+	<saveAssetStep name="SaveOmfFile" 
+        executionLabelExpression="Saving OMF File"
+        assetExpression="audioAsset.masterAsset"
+        contentExpression="${omfFile}"
+        versionAssetExpression="=false"
+        resultDataDef="audioAsset"
+    >   
+        <transition condition="=true">
+            <targetStepName>SaveEdlFile</targetStepName>
+		</transition> 
+	</saveAssetStep>
+	
+<!---	<setContextData name="AssociateOmfToTheProject"  targetDataDef="temp" valueExpression="${#setProjectAsset(subject, 'Audio', audioAsset.masterAsset)}" >
+		<transition condition="=true">
+            <targetStepName>SaveEdlFile</targetStepName>
+		</transition>
+	</setContextData> --->
+	
+    <saveAssetStep name="SaveEdlFile" 
+        executionLabelExpression="Saving EDL file."   
+        assetExpression=""
+        contentExpression="${edlFile}"
+        searchableFlagExpression="false"
+    >
+		<transition condition="=true">
+			<targetStepName>AssociateEDLToTheProject</targetStepName>
+		</transition>
+	</saveAssetStep>
+    
+    <setContextData name="AssociateEDLToTheProject"  targetDataDef="temp" valueExpression="${#setProjectAsset(subject, 'Audio', audioAsset.masterAsset)}" >
+		<transition condition="=true">
+            <targetStepName>SaveReferenceFile</targetStepName>
+		</transition>
+	</setContextData>
+    
+    <saveAssetStep name="SaveReferenceFile"
+        executionLabelExpression="Saving Reference File"
+        assetExpression=""
+        contentExpression="${referenceFile}"
+        versionAssetExpression="=false"
+        resultDataDef="targetFilePath"
+        >
+        <transition condition="=true">
+            <targetStepName>AssociateReferenceToTheProject</targetStepName>
+		</transition>
+	</saveAssetStep>
+	
+    <setContextData name="AssociateReferenceToTheProject"  targetDataDef="temp" valueExpression="${#setProjectAsset(subject, 'Video', targetFilePath)}" >
+        <transition condition="=true">
+            <targetStepName>UpdateProjectMetadata</targetStepName>
+        </transition>
+    </setContextData>
+    
+	<saveDataObjectStep name="UpdateProjectMetadata" dataObjectExpression="${subject.metadata}">
+        <transition condition="=true">
+            <targetStepName>SendEmail</targetStepName>
+        </transition>
+		<property name="awaitingAudio">true</property>
+		<property name="${dateSentToAudioFieldName}">${currentTime}</property>
+		<property name="${sentToAudioByFieldName}">${#this.workflow.startedBy.userName}</property>
+	</saveDataObjectStep>
+	
+	<emailStep name="SendEmail" emailAddressesExpression="${#sysconfig('email.audio')}" subjectExpression="audio ready for editing">
+        <transition condition="=true">
+            <targetStepName>End</targetStepName>
+        </transition>
+        <body>${omfFile.name} from project ${subject.name} is ready for audio editing</body>
+	</emailStep>
+	
+	<noopStep name="Error" executionLabelExpression="Error - invalid files selected." />
+	
+	<noopStep name="End" executionLabelExpression="End of Send To Audio"/>
+	
+	<!--private variables-->
+    <contextDataDef name="audioAsset" dataType="Data Object" />
+    <contextDataDef name="targetFilePath" dataType="String"/>
+    <contextDataDef name="omfFile" dataType="File" label="1. OMF File" required="true" userInput="true"/>
+    <contextDataDef name="edlFile" dataType="File" label="2. EDL File" required="false" userInput="true"/>
+    <contextDataDef name="referenceFile" dataType="File" label="3. Reference File" required="false" userInput="true"/>
+	<contextDataDef name="dateSentToAudioFieldName" dataType="String" defaultDataExpression="${#sysconfig('project.fieldName.dateSentToAudioField')}"/>
+	<contextDataDef name="sentToAudioByFieldName" dataType="String" defaultDataExpression="${#sysconfig('project.fieldName.sentToAudioByField')}"/>
+	<contextDataDef name="temp" dataType="String" />
+	
+ </workflow>
+ 
